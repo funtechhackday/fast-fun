@@ -1,0 +1,304 @@
+<html>
+<head>
+<meta http-equiv="Cache-Control" content="private"> <!-- + Отключаем кэш а то невозможно отлаживать -->
+<meta http-equiv="Cache-Control" content="no-cache">	<!-- + Отключаем кэш а то невозможно отлаживать -->
+
+<title>Игра</title>
+<style type="text/css">
+* {
+	box-sizing: border-box;
+}
+body {
+	margin: 0;
+	background: url('') #fff;
+	overflow: hidden;
+}
+p {
+	margin: 5px 0px;
+}
+input,select {
+	display: block;
+	width: 100%;
+	margin: 5px 0px; padding: 3px 10px;
+	border: 1px solid #ccc;
+	background: #fff;
+	font-size: 18px;
+}
+select {
+	padding-left: 5px;
+}
+input[type=checkbox] {
+	display: inline;
+	width: auto;
+}
+input[type=submit],input[type=button],input[type=reset] {
+	border: 1px solid #ccc;
+	background: #eee;
+	color: #000;
+}
+canvas {
+	position: absolute; top: 0; left: 0;
+	height: 100%; width: 100%;
+}
+#debug {
+	position: fixed; top: 0; right: 0;
+	padding: 10px;
+	border: 1px solid #000;
+}
+
+.fullscreen-bg {
+    overflow: hidden;
+    z-index: -100;
+    position: relative;
+    height: 100%;
+    width: 100%;
+    padding-top:45%;
+}
+ 
+.fullscreen-bg__video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+ 
+.overlay {
+    background: rgba(0,0,0,0.6);
+    position: absolute;
+    top:0;
+    left:0;
+    width: 100%;
+    height: 100%;
+    z-index: 4;
+}
+ 
+.overlay h1 {
+    text-align:center;
+    color:#fff;
+    font-size: 70px;
+    margin-top:17%;
+}
+
+</style>
+<meta http-equiv="Content-Language" content="ru">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script type="text/javascript" src="jquery-1.8.js"></script>
+<script type="text/javascript" src="pages.js"></script>
+
+
+<script type="text/javascript" src="three87/build/three.js"></script>	<!-- + Подключение three.js (14.00 14.10.17) -->
+<script type="text/javascript" src="engine.js?1"></script>	<!-- + Подключение three.js (14.00 14.10.17) -->
+<script type="text/javascript" src="FastText.js"></script> <!-- + Подключение Текста над игроком (14.10 14.10.17) -->
+</head>
+<body>
+
+
+
+
+
+<div id="area">
+	<h2>FastFun</h2>
+	<div id="welcome_block"></div>
+</div>
+<canvas id="canvas" width="" height="" style="display: none;" style=""></canvas> <!-- + 12:30 15.10.17 -->
+
+
+
+<!--<div id="debug">Для отладки:<input type="button" value="Очистить хранилище" onclick="window.localStorage.fastfun_game = '';location.reload(1);" /></div>-->
+<script type="text/javascript">
+loaderNew();
+
+var nameClient = '';
+
+
+
+// Мобильная версия
+if(window.innerHeight < 600 && window.innerWidth < 600) {
+	document.write('<link rel="stylesheet" href="mobile.css" type="text/css" />');
+	id('debug').style.display = 'none';
+// Настольная
+} else {
+	document.write('<link rel="stylesheet" href="desktop.css" type="text/css" />');
+}
+// window.localStorage.fastfun_game = '';
+
+
+
+
+// Первый раз заходит
+if(!window.localStorage.fastfun_game) {
+	/*id('area').innerHTML += (
+		'<video style="position:absolute;top:0px;left:0px;"  autoplay loop poster>'+
+		
+			'<source src="someCreazy.mov">'+
+		'</video>'
+	);*/
+
+	// Показываем ему форму для заполнения
+	id('welcome_block').innerHTML = (
+		'<input id="name" type="text" value="" placeholder="Ваше имя" />'+
+		'<select id="type">'+
+			'<option value="0" selected disabled>Способности или что-то такое'+
+			'<option value="1">Быстро бегать'+
+			'<option value="2">Сильно бить'+
+		'</select>'+
+		'<p>Разрешите использовать ваше местоположение, чтобы поставить вас в то место на карте, где вы находитесь в мире</p>'+
+		'<input id="submit" type="button"  value="Начать игру" onclick="submit();" />'
+	);
+	// Отсылаем
+	function submit() {
+		nameClient = id('name').value;
+		var type = id('type').value;
+
+		// Проверка ввода
+		if(nameClient.length == 0) {
+			alert('Введите имя');
+			return;
+		}
+		if(type == '0') {
+			alert('Выберите способность');
+			return;
+		}
+		get_location(
+			(coords)	=> {reg_handler(JSON.stringify({name:nameClient,type:type,coords:{latitude:coords.latitude,longitude:coords.longitude}}));},
+			(error)		=> {reg_handler('{}');}
+		);
+	}
+	function reg_handler(reg_data) {
+		var data = JSON.parse(reg_data);
+		
+
+		/*
+		Например
+		data = {
+			id:		1,
+			name:	'Вася',
+			skill:	1,
+			ip:		'127.0.0.1',
+			coords: {
+				latitude: 55,
+				longitude: 56,
+			},
+			hash:	'4c6c817815809c61aab6537a6105febb', // md5(id.name.ip) или что-то типа того
+		}
+		*/
+		document.cookie = "name="+data.name;
+		console.log("cookie:"+data.name);
+		st = window.localStorage.fastfun_game = JSON.stringify(data);
+		start_game();
+	}
+
+// Уже зарегистрирован
+} else {
+
+	st = JSON.parse(window.localStorage.fastfun_game);
+	id('welcome_block').innerHTML = (
+		'<input id="submit" type="button"  value="Начать игру как '+getCookie("name")+'" onclick="start_game();" />'
+	);
+	
+	id('welcome_block').innerHTML += (
+		'<input type="button" value="Использовать другое" onclick="dst()"  />'
+	);
+}
+id('welcome_block').innerHTML += '<div class="ya-share2" data-services="vkontakte,facebook,odnoklassniki,twitter,whatsapp,telegram,in"></div>';
+
+
+
+
+// =============== vЗДЕСЬv =============== \\
+// id('ss1')
+/*id('welcome_block').innerHTML += (
+	'<li class="ya-share2__item ya-share2__item_service_telegram">'+
+		'<a href="https://www.instagram.com/fastfungame/?hl=ru" target="blank">'+
+				'<img style="height:24px;width:24px;" src="https://pp.userapi.com/c630522/v630522304/2b811/JCDwevVeMKA.jpg" />'+
+		'</a>'+
+		'<>Наш проект в инстаграмме</p>'+
+	'</li>'
+);*/
+
+id('welcome_block').innerHTML += (
+	'<a href="https://www.instagram.com/fastfungame/?hl=ru" target="blank">'+
+		'<div style="margin-top:2px;float:left;">'+
+			'<img style="height:24px;width:24px;" src="https://pp.userapi.com/c630522/v630522304/2b811/JCDwevVeMKA.jpg" />'+
+		'</div>'+
+		'<p>Наш инстаграм</p>'+
+	'</a>'
+);
+
+
+
+// =============== ^ЗДЕСЬ^ =============== \\
+
+
+function dst(){
+	window.localStorage.fastfun_game = '';
+	location.reload(1);
+}
+
+function start_game() {
+	//alert("Начинаем игру!");
+
+	// В глобальном st все записано
+
+	// Отправляем данные о себе
+	// $.post('Адрес сервера',st,function() {
+		id('area').remove();
+		//document.body.appendChild(create_element('canvas',{id:'canvas'}));
+		document.body.appendChild(create_element('audio',{id:'background_music',src:'',autoplay:true,loop:true}));
+
+		// Ну и тут загружаем все дополнительные данные, устанавливаем соединение и т д
+	// });
+	
+	initialization();	// Инициализация canvas
+	
+	
+	// + вызов методов из engine.js (14:00 14.10.17)
+	net(st);
+	
+}
+
+// Проигрывание звуков
+sounds = []; // Список звуков
+function play_sound(sound,time) {
+	// Номер нового звука
+	let sound_id = sounds.length;
+	// Создаем элемент и проигрываем его
+	document.body.appendChild(create_element('audio',{id:'sound'+sound_id,src:sound,autoplay:true}));
+
+	// Когда звук кончится, удаляем элемент и из списка
+	window.setTimeout(() => {
+		id('sound'+sound_id).remove();
+		delete sounds[sound_id];
+	},time);
+}
+
+// Получение местоположения
+function get_location(callback,err) {
+	navigator.geolocation.getCurrentPosition(
+		(position)	=> {callback(position.coords);},
+		/*
+		position.coords = {
+			latitude	- широта
+			longitude	- долгота
+			altitude	- высота
+			accuracy	- точность
+			heading		- азимут направления движения
+			speed		- скорость
+			timestamp	- временная метка
+		}
+		*/
+		(error)		=> {err(error);}
+		/*
+		error.code:
+		1 - пользователь не разрешил
+		2 - местоположение не доступно
+		3 - время вышло
+		0 - неизвестная ошибка
+		*/
+	);
+}
+</script>
+<script src="http://yastatic.net/es5-shims/0.0.2/es5-shims.min.js"></script><script src="http://yastatic.net/share2/share.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+#area {
+	width: 100%;
+	margin: 0px auto; padding: 10px;
+}
+#area h2 {
+	margin: 0; padding: 2px 5px;
+	font-size: 32px;
+	text-align: center;
+}
